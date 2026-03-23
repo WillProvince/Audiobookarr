@@ -1,0 +1,74 @@
+# Audiobookarr – full stack Docker Compose
+#
+# Quick start:
+#   1. Copy .env.example to .env and fill in your secrets.
+#   2. docker compose up -d
+#
+# After first boot:
+#   - Audiobookarr:  http://localhost:5000
+#   - Jackett:       http://localhost:9117  (grab the API key from the UI)
+#   - qBittorrent:   http://localhost:8080  (default creds: admin / adminadmin)
+#
+# Once Jackett and qBittorrent are running, paste their URLs and credentials
+# into the Audiobookarr Settings page.
+
+services:
+  audiobookarr:
+    build: .
+    container_name: audiobookarr
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - audiobookarr_data:/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - DATABASE_URL=sqlite:////data/audiobookarr.db
+      - JACKETT_URL=http://jackett:9117
+      - JACKETT_API_KEY=${JACKETT_API_KEY:-}
+      - JACKETT_INDEXER=${JACKETT_INDEXER:-all}
+      - JACKETT_CATEGORIES=${JACKETT_CATEGORIES:-3030}
+      - QBITTORRENT_URL=http://qbittorrent:8080
+      - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME:-admin}
+      - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-adminadmin}
+      - QBITTORRENT_SAVE_PATH=${QBITTORRENT_SAVE_PATH:-/downloads}
+    depends_on:
+      - jackett
+      - qbittorrent
+
+  jackett:
+    image: lscr.io/linuxserver/jackett:latest
+    container_name: jackett
+    restart: unless-stopped
+    ports:
+      - "9117:9117"
+    volumes:
+      - jackett_config:/config
+      - downloads:/downloads
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "6881:6881"
+      - "6881:6881/udp"
+    volumes:
+      - qbittorrent_config:/config
+      - downloads:/downloads
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-UTC}
+      - WEBUI_PORT=8080
+
+volumes:
+  audiobookarr_data:
+  jackett_config:
+  qbittorrent_config:
+  downloads:
