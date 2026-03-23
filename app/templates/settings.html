@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Settings – Audiobookarr{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Settings</h1>
+</div>
+
+<form id="settings-form" onsubmit="saveSettings(event)">
+  <section class="settings-section">
+    <h2>Jackett</h2>
+    <p class="settings-description">
+      <a href="https://github.com/Jackett/Jackett" target="_blank" rel="noopener">Jackett</a>
+      acts as a proxy for torrent indexers.
+    </p>
+    <div class="form-group">
+      <label for="JACKETT_URL">Jackett URL</label>
+      <input type="url" id="JACKETT_URL" name="JACKETT_URL"
+             value="{{ settings.JACKETT_URL }}" placeholder="http://localhost:9117">
+    </div>
+    <div class="form-group">
+      <label for="JACKETT_API_KEY">Jackett API Key</label>
+      <input type="text" id="JACKETT_API_KEY" name="JACKETT_API_KEY"
+             value="{{ settings.JACKETT_API_KEY }}" placeholder="Your Jackett API key">
+    </div>
+    <div class="form-group">
+      <label for="JACKETT_INDEXER">Indexer</label>
+      <input type="text" id="JACKETT_INDEXER" name="JACKETT_INDEXER"
+             value="{{ settings.JACKETT_INDEXER }}" placeholder="all">
+      <small>Use <code>all</code> to search all configured indexers.</small>
+    </div>
+    <div class="form-group">
+      <label for="JACKETT_CATEGORIES">Categories</label>
+      <input type="text" id="JACKETT_CATEGORIES" name="JACKETT_CATEGORIES"
+             value="{{ settings.JACKETT_CATEGORIES }}" placeholder="3030">
+      <small>Newznab category IDs (comma-separated). 3030 = AudioBook.</small>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="testJackett()">Test Jackett</button>
+    <span id="jackett-test-result"></span>
+  </section>
+
+  <section class="settings-section">
+    <h2>qBittorrent</h2>
+    <p class="settings-description">qBittorrent download client with Web UI enabled.</p>
+    <div class="form-group">
+      <label for="QBITTORRENT_URL">qBittorrent URL</label>
+      <input type="url" id="QBITTORRENT_URL" name="QBITTORRENT_URL"
+             value="{{ settings.QBITTORRENT_URL }}" placeholder="http://localhost:8080">
+    </div>
+    <div class="form-group">
+      <label for="QBITTORRENT_USERNAME">Username</label>
+      <input type="text" id="QBITTORRENT_USERNAME" name="QBITTORRENT_USERNAME"
+             value="{{ settings.QBITTORRENT_USERNAME }}" placeholder="admin">
+    </div>
+    <div class="form-group">
+      <label for="QBITTORRENT_PASSWORD">Password</label>
+      <input type="password" id="QBITTORRENT_PASSWORD" name="QBITTORRENT_PASSWORD"
+             value="{{ settings.QBITTORRENT_PASSWORD }}" placeholder="••••••••"
+             autocomplete="current-password">
+    </div>
+    <div class="form-group">
+      <label for="QBITTORRENT_SAVE_PATH">Save Path</label>
+      <input type="text" id="QBITTORRENT_SAVE_PATH" name="QBITTORRENT_SAVE_PATH"
+             value="{{ settings.QBITTORRENT_SAVE_PATH }}" placeholder="/data/audiobooks">
+      <small>Leave blank to use qBittorrent's default save path.</small>
+    </div>
+    <button type="button" class="btn btn-secondary" onclick="testQBittorrent()">Test qBittorrent</button>
+    <span id="qbt-test-result"></span>
+  </section>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function collectFormData() {
+  const form = document.getElementById('settings-form');
+  const data = {};
+  for (const el of form.querySelectorAll('input[name]')) {
+    data[el.name] = el.value;
+  }
+  return data;
+}
+
+function saveSettings(event) {
+  event.preventDefault();
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(collectFormData())
+  })
+  .then(r => r.json())
+  .then(data => showAlert('success', 'Settings saved.'))
+  .catch(err => showAlert('danger', 'Save failed: ' + err.message));
+}
+
+function testJackett() {
+  const resultEl = document.getElementById('jackett-test-result');
+  resultEl.textContent = 'Testing…';
+  fetch('/api/settings/test/jackett', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(collectFormData())
+  })
+  .then(r => r.json())
+  .then(data => {
+    resultEl.textContent = data.ok ? `✓ Connected (${data.results_count} results)` : `✗ ${data.error}`;
+    resultEl.className = data.ok ? 'test-ok' : 'test-fail';
+  })
+  .catch(err => {
+    resultEl.textContent = '✗ ' + err.message;
+    resultEl.className = 'test-fail';
+  });
+}
+
+function testQBittorrent() {
+  const resultEl = document.getElementById('qbt-test-result');
+  resultEl.textContent = 'Testing…';
+  fetch('/api/settings/test/qbittorrent', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(collectFormData())
+  })
+  .then(r => r.json())
+  .then(data => {
+    resultEl.textContent = data.ok ? '✓ Connected' : `✗ ${data.error}`;
+    resultEl.className = data.ok ? 'test-ok' : 'test-fail';
+  })
+  .catch(err => {
+    resultEl.textContent = '✗ ' + err.message;
+    resultEl.className = 'test-fail';
+  });
+}
+</script>
+{% endblock %}
