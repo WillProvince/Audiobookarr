@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Library – Audiobookarr{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>My Library</h1>
+  <a href="{{ url_for('books.search_page') }}" class="btn btn-primary">+ Add Book</a>
+</div>
+
+{% if books %}
+<div class="book-grid" id="library-grid">
+  {% for book in books %}
+  <div class="book-card" data-book-id="{{ book.id }}">
+    <div class="book-cover">
+      {% if book.cover_url %}
+      <img src="{{ book.cover_url }}" alt="{{ book.title }} cover" loading="lazy">
+      {% else %}
+      <div class="cover-placeholder">📚</div>
+      {% endif %}
+    </div>
+    <div class="book-info">
+      <h3 class="book-title">{{ book.title }}</h3>
+      <p class="book-author">{{ book.author }}</p>
+      <span class="status-badge status-{{ book.status }}">{{ book.status }}</span>
+    </div>
+    <div class="book-actions">
+      <button class="btn btn-sm btn-secondary" onclick="searchTorrents({{ book.id }}, '{{ book.title|e }}', '{{ book.author|e }}')">
+        Find Torrents
+      </button>
+      <button class="btn btn-sm btn-danger" onclick="deleteBook({{ book.id }})">
+        Remove
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>Your library is empty.</p>
+  <a href="{{ url_for('books.search_page') }}" class="btn btn-primary">Search for an audiobook</a>
+</div>
+{% endif %}
+
+<!-- Torrent Modal -->
+<div id="torrent-modal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modal-title">Available Torrents</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="torrent-list" class="torrent-list">
+      <p class="loading">Searching Jackett…</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _currentBookId = null;
+
+function searchTorrents(bookId, title, author) {
+  _currentBookId = bookId;
+  document.getElementById('modal-title').textContent = `Torrents for "${title}"`;
+  document.getElementById('torrent-list').innerHTML = '<p class="loading">Searching Jackett…</p>';
+  document.getElementById('torrent-modal').classList.remove('hidden');
+
+  fetch(`/api/books/${bookId}/torrents`)
+    .then(r => r.json())
+    .then(renderTorrents)
+    .catch(err => {
+      document.getElementById('torrent-list').innerHTML =
+        `<p class="error">Error: ${err.message}</p>`;
+    });
+}
+
+function renderTorrents(data) {
+  const list = document.getElementById('torrent-list');
+  if (data.error) {
+    list.innerHTML = `<p class="error">${data.error}${data.detail ? ': ' + data.detail : ''}</p>`;
+    return;
+  }
+  if (!data.length) {
+    list.innerHTML = '<p class="empty">No torrents found.</p>';
+    return;
+  }
+  list.innerHTML = data.map(t => `
+    <div class="torrent-item">
+      <div class="torrent-info">
+        <strong>${escHtml(t.title)}</strong>
+        <span class="torrent-meta">${t.indexer} · ${t.seeders} seeders · ${formatSize(t.size)}</span>
+      </div>
+      <button class="btn btn-sm btn-primary" onclick="downloadTorrent(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+        Download
+      </button>
+    </div>
+  `).join('');
+}
+
+function downloadTorrent(torrent) {
+  if (!_currentBookId) return;
+  fetch(`/api/books/${_currentBookId}/download`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      magnet_or_url: torrent.magnet_url || torrent.download_url,
+      title: torrent.title,
+      indexer: torrent.indexer
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      showAlert('danger', 'Download failed: ' + data.error);
+    } else {
+      showAlert('success', 'Torrent added to qBittorrent!');
+      closeModal();
+      // Refresh the page to update status
+      setTimeout(() => location.reload(), 1000);
+    }
+  })
+  .catch(err => showAlert('danger', 'Network error: ' + err.message));
+}
+
+function deleteBook(bookId) {
+  if (!confirm('Remove this book from your library?')) return;
+  fetch(`/api/books/${bookId}`, {method: 'DELETE'})
+    .then(r => r.json())
+    .then(() => {
+      document.querySelector(`[data-book-id="${bookId}"]`).remove();
+      showAlert('success', 'Book removed from library.');
+    })
+    .catch(err => showAlert('danger', 'Error: ' + err.message));
+}
+
+function closeModal() {
+  document.getElementById('torrent-modal').classList.add('hidden');
+  _currentBookId = null;
+}
+
+function formatSize(bytes) {
+  if (!bytes) return 'Unknown';
+  const gb = bytes / 1073741824;
+  if (gb >= 1) return gb.toFixed(2) + ' GB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+</script>
+{% endblock %}

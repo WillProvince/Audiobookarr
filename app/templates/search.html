@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Search – Audiobookarr{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Search for an Audiobook</h1>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="search-input" placeholder="Search by title, author, or ISBN…" autofocus>
+  <button class="btn btn-primary" id="search-btn" onclick="doSearch()">Search</button>
+</div>
+
+<div id="search-results" class="book-grid"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('search-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doSearch();
+});
+
+function doSearch() {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) return;
+  const resultsEl = document.getElementById('search-results');
+  resultsEl.innerHTML = '<p class="loading">Searching Open Library…</p>';
+
+  fetch('/api/search?q=' + encodeURIComponent(query))
+    .then(r => r.json())
+    .then(renderResults)
+    .catch(err => {
+      resultsEl.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+    });
+}
+
+function renderResults(data) {
+  const el = document.getElementById('search-results');
+  if (data.error) {
+    el.innerHTML = `<p class="error">${data.error}</p>`;
+    return;
+  }
+  if (!data.length) {
+    el.innerHTML = '<p class="empty">No results found.</p>';
+    return;
+  }
+  el.innerHTML = data.map(book => `
+    <div class="book-card">
+      <div class="book-cover">
+        ${book.cover_url
+          ? `<img src="${escHtml(book.cover_url)}" alt="${escHtml(book.title)} cover" loading="lazy">`
+          : '<div class="cover-placeholder">📚</div>'}
+      </div>
+      <div class="book-info">
+        <h3 class="book-title">${escHtml(book.title)}</h3>
+        <p class="book-author">${escHtml(book.author)}</p>
+        ${book.first_publish_year ? `<p class="book-year">${book.first_publish_year}</p>` : ''}
+      </div>
+      <div class="book-actions">
+        <button class="btn btn-sm btn-primary"
+          onclick='addBook(${JSON.stringify(book).replace(/"/g, "&quot;")})'>
+          + Add to Library
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addBook(book) {
+  fetch('/api/books', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      title: book.title,
+      author: book.author,
+      open_library_id: book.open_library_id,
+      cover_url: book.cover_url
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      showAlert('warning', data.error);
+    } else {
+      showAlert('success', `"${data.title}" added to your library!`);
+    }
+  })
+  .catch(err => showAlert('danger', 'Network error: ' + err.message));
+}
+</script>
+{% endblock %}
