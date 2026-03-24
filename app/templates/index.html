@@ -85,17 +85,25 @@ function renderTorrents(data) {
     list.innerHTML = '<p class="empty">No torrents found.</p>';
     return;
   }
-  list.innerHTML = data.map(t => `
+
+  list.innerHTML = data.map((t, i) => `
     <div class="torrent-item">
       <div class="torrent-info">
         <strong>${escHtml(t.title)}</strong>
-        <span class="torrent-meta">${t.indexer} · ${t.seeders} seeders · ${formatSize(t.size)}</span>
+        <span class="torrent-meta">${escHtml(t.indexer)} · ${t.seeders} seeders · ${formatSize(t.size)}</span>
       </div>
-      <button class="btn btn-sm btn-primary" onclick="downloadTorrent(${JSON.stringify(t).replace(/"/g,'&quot;')})">
+      <button class="btn btn-sm btn-primary" data-torrent-index="${i}">
         Download
       </button>
     </div>
   `).join('');
+
+  // Attach click handlers using data references — avoids JSON-in-HTML quoting bugs
+  list.querySelectorAll('[data-torrent-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      downloadTorrent(data[parseInt(btn.dataset.torrentIndex)]);
+    });
+  });
 }
 
 function downloadTorrent(torrent) {
