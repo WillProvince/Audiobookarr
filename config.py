@@ -23,3 +23,6 @@ class Config:
 
     # Audiobook category IDs used for Jackett/Newznab (3030 = AudioBook)
     JACKETT_CATEGORIES = os.environ.get("JACKETT_CATEGORIES", "3030")
+
+    # Path inside the container where downloaded files are accessible
+    LIBRARY_PATH = os.environ.get("LIBRARY_PATH", "/downloads")

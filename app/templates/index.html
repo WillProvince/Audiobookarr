@@ -4,7 +4,10 @@
 {% block content %}
 <div class="page-header">
   <h1>My Library</h1>
-  <a href="{{ url_for('books.search_page') }}" class="btn btn-primary">+ Add Book</a>
+  <div style="display:flex;gap:0.5rem;align-items:center;">
+    <button class="btn btn-secondary" onclick="syncStatus()">↻ Sync Status</button>
+    <a href="{{ url_for('books.search_page') }}" class="btn btn-primary">+ Add Book</a>
+  </div>
 </div>
 
 {% if books %}
@@ -128,6 +131,21 @@ function downloadTorrent(torrent) {
     }
   })
   .catch(err => showAlert('danger', 'Network error: ' + err.message));
+}
+
+function syncStatus() {
+  showAlert('info', 'Syncing with qBittorrent…');
+  fetch('/api/sync', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok) {
+        showAlert('success', 'Sync complete.');
+        setTimeout(() => location.reload(), 800);
+      } else {
+        showAlert('danger', 'Sync failed: ' + data.error);
+      }
+    })
+    .catch(err => showAlert('danger', 'Sync error: ' + err.message));
 }
 
 function deleteBook(bookId) {

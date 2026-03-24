@@ -207,6 +207,19 @@ def api_download(book_id):
     return jsonify(download.to_dict()), 201
 
 
+@books_bp.route("/api/sync", methods=["POST"])
+def api_sync():
+    """Manually trigger a qBittorrent status sync."""
+    from app.services.sync import sync_downloads
+
+    try:
+        sync_downloads(current_app._get_current_object())
+        return jsonify({"ok": True})
+    except Exception as exc:
+        current_app.logger.error("Manual sync failed: %s", exc, exc_info=True)
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
+
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
