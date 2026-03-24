@@ -1,3 +1,4 @@
+import atexit
 import logging
 
 from flask import Flask
@@ -26,5 +27,23 @@ def create_app(config_object="config.Config"):
 
     with app.app_context():
         db.create_all()
+
+    # Start background scheduler (not in testing)
+    if not app.config.get("TESTING"):
+        from apscheduler.schedulers.background import BackgroundScheduler
+
+        from app.services.sync import sync_downloads
+
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            func=sync_downloads,
+            args=[app],
+            trigger="interval",
+            seconds=60,
+            id="sync_downloads",
+            replace_existing=True,
+        )
+        scheduler.start()
+        atexit.register(lambda: scheduler.shutdown(wait=False))
 
     return app

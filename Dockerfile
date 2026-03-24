@@ -14,12 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY . .
 
-# Create the directory used for the SQLite database volume
-RUN mkdir -p /data
+# Create the directory used for the SQLite database volume and downloads
+RUN mkdir -p /data /downloads
 
 # Run as a non-root user for security
 RUN adduser --disabled-password --gecos "" audiobookarr \
-    && chown -R audiobookarr:audiobookarr /app /data
+    && chown -R audiobookarr:audiobookarr /app /data /downloads
 
 USER audiobookarr
 

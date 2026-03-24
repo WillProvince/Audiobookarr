@@ -21,6 +21,7 @@ services:
       - "5000:5000"
     volumes:
       - audiobookarr_data:/data
+      - downloads:/downloads
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - DATABASE_URL=sqlite:////data/audiobookarr.db
@@ -32,6 +33,7 @@ services:
       - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME:-admin}
       - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-adminadmin}
       - QBITTORRENT_SAVE_PATH=${QBITTORRENT_SAVE_PATH:-/downloads}
+      - LIBRARY_PATH=/downloads
     depends_on:
       - jackett
       - qbittorrent
