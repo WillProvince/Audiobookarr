@@ -1,5 +1,7 @@
 """Routes for book search, library management, and torrent downloads."""
 
+import logging
+
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from app import db
@@ -9,6 +11,7 @@ from app.services import jackett as jk
 from app.services.qbittorrent import QBittorrentClient, QBittorrentError
 
 books_bp = Blueprint("books", __name__)
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -158,6 +161,11 @@ def api_download(book_id):
     torrent_title = (payload.get("title") or "").strip()
     indexer = (payload.get("indexer") or "").strip()
 
+    logger.info(
+        "api_download: book_id=%s magnet_or_url=%r torrent_title=%r indexer=%r",
+        book_id, magnet_or_url, torrent_title, indexer,
+    )
+
     if not magnet_or_url:
         return jsonify({"error": "magnet_or_url is required"}), 400
 
@@ -166,17 +174,24 @@ def api_download(book_id):
     qbt_pass = _setting("QBITTORRENT_PASSWORD", "QBITTORRENT_PASSWORD")
     save_path = _setting("QBITTORRENT_SAVE_PATH", "QBITTORRENT_SAVE_PATH")
 
+    logger.info(
+        "api_download: qbt_url=%r qbt_user=%r save_path=%r",
+        qbt_url, qbt_user, save_path,
+    )
+
     client = QBittorrentClient(qbt_url, qbt_user, qbt_pass)
     try:
         client.add_torrent(magnet_or_url, save_path=save_path)
     except QBittorrentError as exc:
-        current_app.logger.error("qBittorrent error: %s", exc)
+        current_app.logger.error("qBittorrent error: %s", exc, exc_info=True)
         return jsonify({"error": str(exc)}), 502
     except Exception as exc:
-        current_app.logger.error("qBittorrent unexpected error: %s", exc)
+        current_app.logger.error("qBittorrent unexpected error: %s", exc, exc_info=True)
         return jsonify({"error": "qBittorrent connection failed", "detail": str(exc)}), 502
     finally:
         client.logout()
+
+    logger.info("api_download: torrent accepted by qBittorrent for book_id=%s", book_id)
 
     download = Download(
         book_id=book.id,

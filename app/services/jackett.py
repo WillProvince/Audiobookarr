@@ -1,8 +1,11 @@
 """Jackett indexer integration."""
 
+import logging
 import urllib.parse
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 JACKETT_SEARCH_PATH = "/api/v2.0/indexers/{indexer}/results"
 _ALLOWED_SCHEMES = {"http", "https"}
@@ -40,6 +43,10 @@ def search_torrents(
     """
     _validate_url(base_url)
     url = base_url.rstrip("/") + JACKETT_SEARCH_PATH.format(indexer=indexer)
+    logger.info(
+        "Jackett search: base_url=%r indexer=%r query=%r categories=%r",
+        base_url, indexer, query, categories,
+    )
     params = {
         "apikey": api_key,
         "Query": query,
@@ -51,6 +58,7 @@ def search_torrents(
             if isinstance(params["Category[]"], list):
                 params["Category[]"].append(cat)
 
+    logger.debug("Jackett request URL: %s params: %r", url, params)
     response = requests.get(url, params=params, timeout=timeout)
     response.raise_for_status()
     data = response.json()
@@ -67,6 +75,10 @@ def search_torrents(
                 "download_url": item.get("Link", ""),
             }
         )
+
+    logger.info("Jackett returned %d result(s)", len(results))
+    if results:
+        logger.debug("Jackett first result raw: %r", data["Results"][0])
 
     # Sort by seeders descending so the best result comes first
     results.sort(key=lambda x: x["seeders"], reverse=True)
