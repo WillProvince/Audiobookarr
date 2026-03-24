@@ -117,15 +117,14 @@ function downloadTorrent(torrent) {
       indexer: torrent.indexer
     })
   })
-  .then(r => r.json())
-  .then(data => {
-    if (data.error) {
-      showAlert('danger', 'Download failed: ' + data.error);
+  .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+  .then(({ ok, status, data }) => {
+    if (!ok || data.error) {
+      showAlert('danger', 'Download failed: ' + (data.error || `HTTP ${status}`));
     } else {
       showAlert('success', 'Torrent added to qBittorrent!');
       closeModal();
-      // Refresh the page to update status
-      setTimeout(() => location.reload(), 1000);
+      setTimeout(() => location.reload(), 1500);
     }
   })
   .catch(err => showAlert('danger', 'Network error: ' + err.message));
