@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from app.models import Book, Download
+from app.models import Book, Download, Setting
 from app import db
 from app.services.sync import sync_downloads
 
@@ -117,3 +117,74 @@ def test_sync_qbittorrent_connection_failure(app):
     ), patch("app.services.sync.QBittorrentClient.logout"):
         # Must not raise
         sync_downloads(app)
+
+
+# ---------------------------------------------------------------------------
+# _run_import called on completion
+# ---------------------------------------------------------------------------
+
+
+def test_sync_completed_calls_run_import(app):
+    """When a torrent transitions to completed, _run_import should be invoked."""
+    book_id, download_id = _make_book_and_download(app)
+
+    fake_torrent = {
+        "name": "Dune Frank Herbert",
+        "state": "pausedUP",
+        "content_path": "/downloads/Dune Frank Herbert",
+    }
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.sync._run_import") as mock_run_import:
+        sync_downloads(app)
+
+    mock_run_import.assert_called_once()
+
+
+def test_sync_run_import_skipped_when_audiobooks_path_not_set(app):
+    """_run_import should skip the file move when AUDIOBOOKS_PATH is not configured."""
+    book_id, download_id = _make_book_and_download(app)
+
+    fake_torrent = {
+        "name": "Dune Frank Herbert",
+        "state": "pausedUP",
+        "content_path": "/downloads/Dune Frank Herbert",
+    }
+
+    # Ensure AUDIOBOOKS_PATH is empty in the DB
+    with app.app_context():
+        Setting.set("AUDIOBOOKS_PATH", "")
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.importer.import_download") as mock_import:
+        sync_downloads(app)
+
+    mock_import.assert_not_called()
+
+
+def test_sync_stores_content_path(app):
+    """content_path from qBittorrent should be stored on download.download_path."""
+    book_id, download_id = _make_book_and_download(app)
+
+    fake_torrent = {
+        "name": "Dune Frank Herbert",
+        "state": "pausedUP",
+        "content_path": "/downloads/Dune Frank Herbert",
+    }
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.sync._run_import"):
+        sync_downloads(app)
+
+    with app.app_context():
+        dl = db.session.get(Download, download_id)
+        assert dl.download_path == "/downloads/Dune Frank Herbert"

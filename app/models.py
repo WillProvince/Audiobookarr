@@ -43,6 +43,7 @@ class Download(db.Model):
     # Status: queued | downloading | seeding | completed | error
     status = db.Column(db.String(50), nullable=False, default="queued")
     added_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    download_path = db.Column(db.String(2000), nullable=True)
 
     def to_dict(self):
         return {
@@ -53,6 +54,7 @@ class Download(db.Model):
             "indexer": self.indexer,
             "status": self.status,
             "added_at": self.added_at.isoformat(),
+            "download_path": self.download_path,
         }
 
 
