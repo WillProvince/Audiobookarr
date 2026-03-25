@@ -29,5 +29,9 @@ ENV DATABASE_URL=sqlite:////data/audiobookarr.db
 EXPOSE 5000
 
 # Use Gunicorn as the production WSGI server.
-# Workers can be tuned via GUNICORN_WORKERS (defaults to 2).
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers ${GUNICORN_WORKERS:-2} run:app"]
+# Default to 1 worker: APScheduler uses a background *thread*, not a process.
+# Gunicorn forks workers after app creation, which kills the scheduler thread in
+# child processes.  A single worker avoids this fork-safety issue while still
+# handling the async sync work correctly.  Set GUNICORN_WORKERS > 1 only if you
+# know what you are doing (e.g. you have moved the scheduler out of the app).
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:5000 --workers ${GUNICORN_WORKERS:-1} run:app"]

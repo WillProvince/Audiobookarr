@@ -38,7 +38,7 @@ services:
       - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME:-admin}
       - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-adminadmin}
       - QBITTORRENT_SAVE_PATH=${QBITTORRENT_SAVE_PATH:-/downloads}
-      - LIBRARY_PATH=/audiobooks
+      - AUDIOBOOKS_PATH=/audiobooks
     depends_on:
       - jackett
       - qbittorrent
