@@ -72,3 +72,29 @@ def test_get_torrents():
     client.login()
     result = client.get_torrents()
     assert result == fake_torrents
+
+
+@resp_lib.activate
+def test_add_torrent_reauth_on_403():
+    """add_torrent should re-authenticate and retry when the first POST returns 403."""
+    resp_lib.add(resp_lib.POST, LOGIN_URL, body="Ok.", status=200)
+    # First add attempt returns 403 (session expired)
+    resp_lib.add(resp_lib.POST, ADD_URL, body="", status=403)
+    # Re-auth login
+    resp_lib.add(resp_lib.POST, LOGIN_URL, body="Ok.", status=200)
+    # Retry succeeds
+    resp_lib.add(resp_lib.POST, ADD_URL, body="Ok.", status=200)
+
+    client = QBittorrentClient(BASE, "admin", "adminadmin")
+    client.login()
+    client.add_torrent("magnet:?xt=urn:btih:abc123")
+    assert client._logged_in is True
+
+
+@resp_lib.activate
+def test_login_unexpected_response_raises():
+    """login() should raise QBittorrentError when the response body is unexpected."""
+    resp_lib.add(resp_lib.POST, LOGIN_URL, body="SomeUnexpectedBody", status=200)
+    client = QBittorrentClient(BASE, "admin", "adminadmin")
+    with pytest.raises(QBittorrentError):
+        client.login()

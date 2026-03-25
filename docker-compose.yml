@@ -11,6 +11,10 @@
 #
 # Once Jackett and qBittorrent are running, paste their URLs and credentials
 # into the Audiobookarr Settings page.
+#
+# Volume paths (set in .env or as env vars):
+#   DOWNLOADS_PATH  – host path for downloads  (default: ./downloads)
+#   AUDIOBOOKS_PATH – host path for audiobook library (default: ./audiobooks)
 
 services:
   audiobookarr:
@@ -21,7 +25,8 @@ services:
       - "5000:5000"
     volumes:
       - audiobookarr_data:/data
-      - downloads:/downloads
+      - ${DOWNLOADS_PATH:-./downloads}:/downloads
+      - ${AUDIOBOOKS_PATH:-./audiobooks}:/audiobooks
     environment:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - DATABASE_URL=sqlite:////data/audiobookarr.db
@@ -33,7 +38,7 @@ services:
       - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME:-admin}
       - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-adminadmin}
       - QBITTORRENT_SAVE_PATH=${QBITTORRENT_SAVE_PATH:-/downloads}
-      - LIBRARY_PATH=/downloads
+      - LIBRARY_PATH=/audiobooks
     depends_on:
       - jackett
       - qbittorrent
@@ -46,7 +51,7 @@ services:
       - "9117:9117"
     volumes:
       - jackett_config:/config
-      - downloads:/downloads
+      - ${DOWNLOADS_PATH:-./downloads}:/downloads
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
@@ -62,7 +67,7 @@ services:
       - "6881:6881/udp"
     volumes:
       - qbittorrent_config:/config
-      - downloads:/downloads
+      - ${DOWNLOADS_PATH:-./downloads}:/downloads
     environment:
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
@@ -73,4 +78,3 @@ volumes:
   audiobookarr_data:
   jackett_config:
   qbittorrent_config:
-  downloads:
