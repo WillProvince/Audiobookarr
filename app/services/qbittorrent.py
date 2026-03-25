@@ -53,9 +53,12 @@ class QBittorrentClient:
             timeout=10,
         )
         resp.raise_for_status()
-        logger.debug("qBittorrent login response: %s", resp.text)
-        if resp.text.strip() == "Fails.":
+        body = resp.text.strip()
+        logger.debug("qBittorrent login response: %r", body)
+        if body.lower() == "fails.":
             raise QBittorrentError("qBittorrent login failed: invalid credentials")
+        if body.lower() not in ("ok.", "ok"):
+            raise QBittorrentError(f"qBittorrent login unexpected response: {body!r}")
         logger.info("qBittorrent login succeeded")
         self._logged_in = True
 
@@ -71,6 +74,26 @@ class QBittorrentClient:
     def _ensure_logged_in(self) -> None:
         if not self._logged_in:
             self.login()
+
+    def _post_with_reauth(self, url: str, data: dict, timeout: int = 15) -> requests.Response:
+        """POST with automatic re-authentication on 403 (session expired)."""
+        resp = self._session.post(url, data=data, timeout=timeout)
+        if resp.status_code == 403:
+            logger.warning("qBittorrent session expired, re-authenticating...")
+            self._logged_in = False
+            self.login()
+            resp = self._session.post(url, data=data, timeout=timeout)
+        return resp
+
+    def _get_with_reauth(self, url: str, params: dict, timeout: int = 10) -> requests.Response:
+        """GET with automatic re-authentication on 403 (session expired)."""
+        resp = self._session.get(url, params=params, timeout=timeout)
+        if resp.status_code == 403:
+            logger.warning("qBittorrent session expired, re-authenticating...")
+            self._logged_in = False
+            self.login()
+            resp = self._session.get(url, params=params, timeout=timeout)
+        return resp
 
     # ------------------------------------------------------------------
     # Torrent management
@@ -96,16 +119,11 @@ class QBittorrentClient:
         url = self.base_url + ADD_TORRENT_PATH
         logger.info("add_torrent called: magnet_or_url=%r save_path=%r", magnet_or_url, save_path)
 
-        data: dict = {"category": category}
+        data: dict = {"category": category, "urls": magnet_or_url}
         if save_path:
             data["savepath"] = save_path
 
-        if magnet_or_url.startswith("magnet:"):
-            data["urls"] = magnet_or_url
-        else:
-            data["urls"] = magnet_or_url
-
-        resp = self._session.post(url, data=data, timeout=15)
+        resp = self._post_with_reauth(url, data=data, timeout=15)
         logger.debug("add_torrent response: status=%s body=%r", resp.status_code, resp.text)
         resp.raise_for_status()
 
@@ -122,6 +140,6 @@ class QBittorrentClient:
         params: dict = {}
         if category:
             params["category"] = category
-        resp = self._session.get(url, params=params, timeout=10)
+        resp = self._get_with_reauth(url, params=params, timeout=10)
         resp.raise_for_status()
         return resp.json()
