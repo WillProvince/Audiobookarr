@@ -26,3 +26,13 @@ class Config:
 
     # Path inside the container where downloaded files are accessible
     LIBRARY_PATH = os.environ.get("LIBRARY_PATH", "/downloads")
+
+    # Library organisation settings
+    # Destination folder for finished audiobooks (inside the container)
+    AUDIOBOOKS_PATH = os.environ.get("AUDIOBOOKS_PATH", "/audiobooks")
+
+    # Naming format tokens: {author}, {title}
+    # Examples:
+    #   "{author}/{title}"       → /audiobooks/Frank Herbert/Dune/
+    #   "{author} - {title}"     → /audiobooks/Frank Herbert - Dune/
+    NAMING_FORMAT = os.environ.get("NAMING_FORMAT", "{author}/{title}")

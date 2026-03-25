@@ -62,10 +62,38 @@
       <label for="QBITTORRENT_SAVE_PATH">Save Path</label>
       <input type="text" id="QBITTORRENT_SAVE_PATH" name="QBITTORRENT_SAVE_PATH"
              value="{{ settings.QBITTORRENT_SAVE_PATH }}" placeholder="/data/audiobooks">
-      <small>Leave blank to use qBittorrent's default save path.</small>
+      <small>Where qBittorrent saves files (as seen by the Audiobookarr container). Leave blank to use qBittorrent's default.</small>
     </div>
     <button type="button" class="btn btn-secondary" onclick="testQBittorrent()">Test qBittorrent</button>
     <span id="qbt-test-result"></span>
+  </section>
+
+  <section class="settings-section">
+    <h2>Library Organisation</h2>
+    <p class="settings-description">
+      When a download completes, Audiobookarr will move the audio files into your audiobook library
+      using the naming format below.
+    </p>
+    <div class="form-group">
+      <label for="AUDIOBOOKS_PATH">Audiobooks Library Path</label>
+      <input type="text" id="AUDIOBOOKS_PATH" name="AUDIOBOOKS_PATH"
+             value="{{ settings.AUDIOBOOKS_PATH }}" placeholder="/audiobooks">
+      <small>
+        Destination folder for organised audiobooks (as seen by the Audiobookarr container).
+        Leave blank to disable automatic file organisation.
+      </small>
+    </div>
+    <div class="form-group">
+      <label for="NAMING_FORMAT">Naming Format</label>
+      <input type="text" id="NAMING_FORMAT" name="NAMING_FORMAT"
+             value="{{ settings.NAMING_FORMAT }}" placeholder="{author}/{title}">
+      <small>
+        Tokens: <code>{author}</code>, <code>{title}</code>.
+        Examples:
+        <code>{author}/{title}</code> → <em>Terry Pratchett/Guards Guards/</em> &nbsp;|&nbsp;
+        <code>{author} - {title}</code> → <em>Terry Pratchett - Guards Guards/</em>
+      </small>
+    </div>
   </section>
 
   <div class="form-actions">

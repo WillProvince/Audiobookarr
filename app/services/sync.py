@@ -98,10 +98,16 @@ def _do_sync() -> None:
         download.status = new_status
         updated += 1
 
+        # Capture where qBittorrent saved the files (content_path or save_path + name)
+        content_path = match.get("content_path") or match.get("save_path", "")
+        if content_path and not download.download_path:
+            download.download_path = content_path
+
         # Update parent book status
         book = download.book
         if new_status == "completed":
             book.status = "downloaded"
+            _run_import(download, book)
         elif new_status == "error":
             book.status = "missing"
 
@@ -109,3 +115,42 @@ def _do_sync() -> None:
     logger.info(
         "sync_downloads: checked %d download(s), updated %d", len(active), updated
     )
+
+
+def _run_import(download: Download, book: Book) -> None:
+    """Attempt to import the completed download into the audiobook library."""
+    from app.services.importer import import_download
+
+    audiobooks_path = _setting("AUDIOBOOKS_PATH")
+    naming_format = _setting("NAMING_FORMAT")
+    library_path = _setting("QBITTORRENT_SAVE_PATH")
+
+    if not audiobooks_path:
+        logger.info(
+            "sync_downloads: AUDIOBOOKS_PATH not set, skipping import for download id=%s",
+            download.id,
+        )
+        return
+
+    if not naming_format:
+        naming_format = "{author}/{title}"
+
+    dest = import_download(
+        author=book.author,
+        title=book.title,
+        content_path=download.download_path or "",
+        torrent_name=download.torrent_title,
+        library_path=library_path,
+        audiobooks_path=audiobooks_path,
+        naming_format=naming_format,
+    )
+
+    if dest:
+        logger.info(
+            "sync_downloads: import complete for book id=%s → %r", book.id, dest
+        )
+    else:
+        logger.warning(
+            "sync_downloads: import found no files for book id=%s (download id=%s)",
+            book.id, download.id,
+        )
