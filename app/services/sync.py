@@ -1,6 +1,7 @@
 """Background sync: pull torrent statuses from qBittorrent and update the DB."""
 
 import logging
+import re
 
 from app import db
 from app.models import Book, Download, Setting
@@ -30,6 +31,14 @@ _STATE_MAP = {
     "missingFiles": "error",
     "unknown": "error",
 }
+
+
+def _normalize(text: str) -> str:
+    """Lowercase, strip punctuation, and collapse whitespace for fuzzy matching."""
+    text = text.lower()
+    text = re.sub(r"[^\w\s]", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
 def sync_downloads(app) -> None:
@@ -74,16 +83,16 @@ def _do_sync() -> None:
     finally:
         client.logout()
 
-    # Build lookup: lowercased torrent name → torrent dict
-    torrent_by_name = {t["name"].lower(): t for t in torrents}
+    # Build lookup: normalized torrent name → torrent dict
+    torrent_by_name = {_normalize(t["name"]): t for t in torrents}
 
     updated = 0
     for download in active:
-        # Find matching torrent by substring match on title
+        # Find matching torrent by substring match on normalized title
         match = None
-        dl_title_lower = download.torrent_title.lower()
-        for name_lower, torrent in torrent_by_name.items():
-            if dl_title_lower in name_lower or name_lower in dl_title_lower:
+        dl_title_norm = _normalize(download.torrent_title)
+        for name_norm, torrent in torrent_by_name.items():
+            if dl_title_norm in name_norm or name_norm in dl_title_norm:
                 match = torrent
                 break
 
