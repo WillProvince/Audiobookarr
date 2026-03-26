@@ -96,6 +96,36 @@ def test_find_source_dir_returns_none_when_not_found():
     assert result is None
 
 
+def test_find_source_dir_falls_back_to_parent_of_nonexistent_file():
+    """If content_path doesn't exist but its parent dir does, return the parent."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        missing_file = os.path.join(tmpdir, "moved_file.mp3")
+        # missing_file does not exist, but tmpdir does
+        result = _find_source_dir(missing_file, "some torrent", "")
+        assert result == tmpdir
+
+
+def test_find_source_dir_fuzzy_match_subdir():
+    """Fuzzy match: directory name is a substring of torrent_name."""
+    with tempfile.TemporaryDirectory() as library_dir:
+        # Directory on disk uses just the title; torrent_name has "Author - Title (Series)"
+        actual_dir = os.path.join(library_dir, "A Court of Mist and Fury")
+        os.makedirs(actual_dir)
+        torrent_name = "Sarah J. Maas - A Court of Mist and Fury (A Court of Thorns and Roses #2)"
+        result = _find_source_dir("", torrent_name, library_dir)
+        assert result == actual_dir
+
+
+def test_find_source_dir_fuzzy_match_torrent_in_dirname():
+    """Fuzzy match: torrent_name is substring of directory name."""
+    with tempfile.TemporaryDirectory() as library_dir:
+        actual_dir = os.path.join(library_dir, "Dune Frank Herbert Unabridged Complete")
+        os.makedirs(actual_dir)
+        torrent_name = "Dune Frank Herbert"
+        result = _find_source_dir("", torrent_name, library_dir)
+        assert result == actual_dir
+
+
 # ---------------------------------------------------------------------------
 # import_download — successful move
 # ---------------------------------------------------------------------------
