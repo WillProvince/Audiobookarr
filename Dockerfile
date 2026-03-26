@@ -14,19 +14,28 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY . .
 
+# Install gosu for privilege dropping in the entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create the directory used for the SQLite database volume and downloads
 RUN mkdir -p /data /downloads /audiobooks
 
-# Run as a non-root user for security
+# Create a non-root user; the entrypoint remaps its uid/gid at runtime via
+# PUID/PGID and then drops privileges with gosu.
 RUN adduser --disabled-password --gecos "" audiobookarr \
     && chown -R audiobookarr:audiobookarr /app /data /downloads /audiobooks
 
-USER audiobookarr
+# Copy and enable the entrypoint that handles PUID/PGID remapping
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Default database path – mount /data as a named volume to persist between restarts
 ENV DATABASE_URL=sqlite:////data/audiobookarr.db
 
 EXPOSE 5000
+
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Use Gunicorn as the production WSGI server.
 # Default to 1 worker: APScheduler uses a background *thread*, not a process.
