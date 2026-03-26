@@ -15,12 +15,16 @@ _STATE_MAP = {
     "metaDL": "downloading",
     "checkingDL": "downloading",
     "forcedDL": "downloading",
+    "pausedDL": "downloading",   # qBittorrent <5.x paused while downloading
+    "stoppedDL": "downloading",  # qBittorrent 5.x renamed pausedDL → stoppedDL
     "uploading": "seeding",
     "stalledUP": "seeding",
     "seeding": "seeding",
     "forcedUP": "seeding",
     "checkingUP": "seeding",
-    "pausedUP": "completed",
+    "queuedUP": "seeding",       # queued for seeding — download is complete
+    "pausedUP": "completed",     # qBittorrent <5.x completed and paused
+    "stoppedUP": "completed",    # qBittorrent 5.x renamed pausedUP → stoppedUP
     "completed": "completed",
     "error": "error",
     "missingFiles": "error",
@@ -84,11 +88,21 @@ def _do_sync() -> None:
                 break
 
         if match is None:
+            logger.warning(
+                "sync_downloads: download id=%s torrent_title=%r — no matching torrent found in qBittorrent (category=audiobookarr)",
+                download.id, download.torrent_title,
+            )
             continue
 
         qbt_state = match.get("state", "")
         new_status = _STATE_MAP.get(qbt_state)
-        if new_status is None or new_status == download.status:
+        if new_status is None:
+            logger.warning(
+                "sync_downloads: download id=%s matched torrent %r but qbt state %r is not in state map — skipping",
+                download.id, match.get("name"), qbt_state,
+            )
+            continue
+        if new_status == download.status:
             continue
 
         logger.info(

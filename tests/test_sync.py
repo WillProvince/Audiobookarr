@@ -1,4 +1,5 @@
 """Tests for the sync_downloads background task."""
+import logging
 from unittest.mock import patch
 
 import pytest
@@ -188,3 +189,55 @@ def test_sync_stores_content_path(app):
     with app.app_context():
         dl = db.session.get(Download, download_id)
         assert dl.download_path == "/downloads/Dune Frank Herbert"
+
+
+# ---------------------------------------------------------------------------
+# qBittorrent 5.x stoppedUP → completed
+# ---------------------------------------------------------------------------
+
+
+def test_sync_stopped_up_completed(app):
+    """stoppedUP state (qBittorrent 5.x) → Download becomes completed, Book becomes downloaded."""
+    book_id, download_id = _make_book_and_download(app)
+
+    fake_torrent = {"name": "Dune Frank Herbert", "state": "stoppedUP"}
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.sync._run_import"):
+        sync_downloads(app)
+
+    with app.app_context():
+        dl = db.session.get(Download, download_id)
+        bk = db.session.get(Book, book_id)
+        assert dl.status == "completed"
+        assert bk.status == "downloaded"
+
+
+# ---------------------------------------------------------------------------
+# Unmapped qBittorrent state → warning logged, no update
+# ---------------------------------------------------------------------------
+
+
+def test_sync_unmapped_state_logs_warning(app, caplog):
+    """An unmapped qBittorrent state should log a WARNING and leave the download unchanged."""
+    book_id, download_id = _make_book_and_download(app, status="queued")
+
+    fake_torrent = {"name": "Dune Frank Herbert", "state": "checkingResumeData"}
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       caplog.at_level(logging.WARNING, logger="app.services.sync"):
+        sync_downloads(app)
+
+    assert any("checkingResumeData" in r.message for r in caplog.records), (
+        "Expected a WARNING containing the unmapped state name"
+    )
+
+    with app.app_context():
+        dl = db.session.get(Download, download_id)
+        assert dl.status == "queued"
