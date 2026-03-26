@@ -287,3 +287,53 @@ def test_sync_normalize_punctuation_mismatch(app):
         bk = db.session.get(Book, book_id)
         assert dl.status == "completed"
         assert bk.status == "downloaded"
+
+
+# ---------------------------------------------------------------------------
+# Real qBittorrent torrent name used as torrent_name for import_download
+# ---------------------------------------------------------------------------
+
+
+def test_sync_run_import_uses_real_torrent_name(app):
+    """_run_import must pass the real qBittorrent torrent name to import_download."""
+    with app.app_context():
+        book = Book(
+            title="Heir of Fire",
+            author="Sarah J Maas",
+            status="downloading",
+        )
+        db.session.add(book)
+        db.session.flush()
+        download = Download(
+            book_id=book.id,
+            # Jackett-stripped title stored in the DB (punctuation removed)
+            torrent_title="Sarah J Maas   Throne of Glass 3   Heir of Fire",
+            magnet_or_url="magnet:?xt=urn:btih:abc999",
+            indexer="TestIndexer",
+            status="queued",
+        )
+        db.session.add(download)
+        db.session.commit()
+        # Ensure AUDIOBOOKS_PATH is set so _run_import doesn't skip
+        Setting.set("AUDIOBOOKS_PATH", "/audiobooks")
+
+    real_torrent_name = "Sarah J. Maas - Throne of Glass 3 - Heir of Fire"
+    fake_torrent = {
+        "name": real_torrent_name,
+        "state": "stoppedUP",
+        "content_path": f"/downloads/tmp/{real_torrent_name}",
+    }
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch(
+        "app.services.sync.QBittorrentClient.logout"
+    ), patch(
+        "app.services.importer.import_download", return_value=None
+    ) as mock_import:
+        sync_downloads(app)
+
+    mock_import.assert_called_once()
+    # The real qBittorrent torrent name must be used, not the Jackett-stripped DB title
+    assert mock_import.call_args.kwargs["torrent_name"] == real_torrent_name

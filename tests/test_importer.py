@@ -126,6 +126,25 @@ def test_find_source_dir_fuzzy_match_torrent_in_dirname():
         assert result == actual_dir
 
 
+def test_find_source_dir_library_path_preferred_over_content_path():
+    """library_path/torrent_name is preferred over content_path when both exist on disk."""
+    with tempfile.TemporaryDirectory() as library_dir, \
+         tempfile.TemporaryDirectory() as tmp_dir:
+        # Simulate qBittorrent's temp folder (content_path)
+        torrent_name = "Sarah J. Maas - Throne of Glass 3 - Heir of Fire"
+        content_path = os.path.join(tmp_dir, torrent_name)
+        os.makedirs(content_path)
+
+        # Simulate the final configured save path (library_path/torrent_name)
+        library_subdir = os.path.join(library_dir, torrent_name)
+        os.makedirs(library_subdir)
+
+        result = _find_source_dir(content_path, torrent_name, library_dir)
+
+        # The configured library path must win over the raw content_path
+        assert result == library_subdir
+
+
 # ---------------------------------------------------------------------------
 # import_download — successful move
 # ---------------------------------------------------------------------------

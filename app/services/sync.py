@@ -131,7 +131,7 @@ def _do_sync() -> None:
         if new_status == "completed":
             book.status = "downloaded"
             try:
-                _run_import(download, book)
+                _run_import(download, book, match)
             except Exception:
                 logger.exception(
                     "sync_downloads: _run_import failed for download id=%s — status still saved as completed",
@@ -146,7 +146,7 @@ def _do_sync() -> None:
     )
 
 
-def _run_import(download: Download, book: Book) -> None:
+def _run_import(download: Download, book: Book, torrent: dict | None = None) -> None:
     """Attempt to import the completed download into the audiobook library."""
     from app.services.importer import import_download
 
@@ -164,11 +164,16 @@ def _run_import(download: Download, book: Book) -> None:
     if not naming_format:
         naming_format = "{author}/{title}"
 
+    # Prefer the real qBittorrent torrent name (used to create the folder on
+    # disk) over the Jackett-derived title stored in the DB, which may have
+    # had punctuation stripped.
+    torrent_name = (torrent or {}).get("name") or download.torrent_title
+
     dest = import_download(
         author=book.author,
         title=book.title,
         content_path=download.download_path or "",
-        torrent_name=download.torrent_title,
+        torrent_name=torrent_name,
         library_path=library_path,
         audiobooks_path=audiobooks_path,
         naming_format=naming_format,
