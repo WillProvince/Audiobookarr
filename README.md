@@ -9,6 +9,7 @@ Automated audiobook collection management tool. Similar to Radarr or Sonarr but 
 - Queue downloads directly to [qBittorrent](https://www.qbittorrent.org/)
 - Dark-themed web UI accessible from any browser
 - Persistent library with wanted / downloading / downloaded status tracking
+- In-browser log viewer at `/logs` with level filtering, auto-refresh, and one-click copy
 
 ---
 
@@ -83,6 +84,26 @@ python run.py                  # starts the Flask dev server on http://localhost
 ```
 
 Set `FLASK_DEBUG=1` to enable the interactive debugger (development only).
+
+---
+
+## Logs
+
+The **Logs** page at [`/logs`](http://localhost:5000/logs) gives you a
+live view of everything the application has logged since startup:
+
+- **Level filter** — switch between ALL, INFO+, WARNING+, and ERROR+ to focus
+  on what matters.
+- **Auto-refresh** — the page polls `/api/logs` every 10 seconds automatically
+  (toggle the checkbox to disable).
+- **Refresh button** — fetch the latest records immediately without reloading
+  the page.
+- **Copy all** — copies every visible log line to the clipboard in the format
+  `2026-03-26 12:34:56 [INFO] app.services.sync: message`.
+
+Log records are stored in an in-memory ring buffer (last 2,000 entries) — no
+log files are written to disk. Docker logs (`docker compose logs -f`) still
+show all output as before.
 
 ---
 
