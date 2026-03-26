@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+{% block title %}Logs – Audiobookarr{% endblock %}
+
+{% block content %}
+<style>
+  .logs-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .logs-toolbar select,
+  .logs-toolbar button,
+  .logs-toolbar label {
+    font-size: 0.875rem;
+  }
+
+  .logs-toolbar select {
+    background: #1a1d2e;
+    color: #e2e8f0;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    padding: 0.35rem 0.65rem;
+    cursor: pointer;
+  }
+
+  .logs-toolbar button {
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 0.35rem 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .logs-toolbar button:hover {
+    background: #3d4a5c;
+  }
+
+  .logs-toolbar .auto-refresh-label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #a0aec0;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  #record-count {
+    margin-left: auto;
+    color: #718096;
+    font-size: 0.8rem;
+  }
+
+  #log-output {
+    background: #0d1117;
+    border: 1px solid #2d3748;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    overflow-x: auto;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .log-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.1rem 0.25rem;
+    border-radius: 3px;
+  }
+
+  .log-line:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .log-ts {
+    color: #718096;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .log-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 4.5rem;
+    text-align: center;
+  }
+
+  .badge-debug    { background: #2d3748; color: #a0aec0; }
+  .badge-info     { background: #1a3a5c; color: #63b3ed; }
+  .badge-warning  { background: #3d2b00; color: #f6ad55; }
+  .badge-error    { background: #3d0a0a; color: #fc8181; }
+  .badge-critical { background: #5c0a0a; color: #feb2b2; }
+
+  .log-logger {
+    color: #76e4f7;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .log-msg {
+    color: #e2e8f0;
+    word-break: break-word;
+  }
+
+  .log-line.level-debug .log-msg { color: #a0aec0; }
+  .log-line.level-warning .log-msg { color: #f6ad55; }
+  .log-line.level-error .log-msg,
+  .log-line.level-critical .log-msg { color: #fc8181; }
+
+  #log-empty {
+    color: #718096;
+    font-style: italic;
+    padding: 0.5rem 0.25rem;
+  }
+</style>
+
+<h2 style="margin-bottom:1rem;">Logs</h2>
+
+<div class="logs-toolbar">
+  <select id="level-filter" title="Minimum log level">
+    <option value="debug">ALL</option>
+    <option value="info">INFO+</option>
+    <option value="warning">WARNING+</option>
+    <option value="error">ERROR+</option>
+  </select>
+
+  <button id="btn-refresh" title="Refresh log output">🔄 Refresh</button>
+
+  <label class="auto-refresh-label" title="Auto-refresh every 10 seconds">
+    <input type="checkbox" id="auto-refresh" checked>
+    Auto-refresh (10 s)
+  </label>
+
+  <button id="btn-copy" title="Copy all visible log lines to clipboard">📋 Copy all</button>
+
+  <span id="record-count"></span>
+</div>
+
+<div id="log-output">
+  <div id="log-empty">Loading…</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let currentEntries = [];
+  let autoRefreshTimer = null;
+
+  function escapeHtml(str) {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function levelClass(level) {
+    return 'level-' + level.toLowerCase();
+  }
+
+  function badgeClass(level) {
+    return 'badge-' + level.toLowerCase();
+  }
+
+  function renderLogs(entries) {
+    currentEntries = entries;
+    const container = document.getElementById('log-output');
+
+    if (!entries.length) {
+      container.innerHTML = '<div id="log-empty">No log records match the current filter.</div>';
+      return;
+    }
+
+    container.innerHTML = entries.map(e => {
+      const lc = levelClass(e.level);
+      const bc = badgeClass(e.level);
+      return `<div class="log-line ${lc}"><span class="log-ts">${escapeHtml(e.time)}</span> <span class="log-badge ${bc}">${escapeHtml(e.level)}</span> <span class="log-logger">${escapeHtml(e.logger)}</span> <span class="log-msg">${escapeHtml(e.message)}</span></div>`;
+    }).join('');
+  }
+
+  async function fetchLogs() {
+    const level = document.getElementById('level-filter').value;
+    try {
+      const resp = await fetch(`/api/logs?level=${level}&limit=500`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+      renderLogs(data.entries);
+      document.getElementById('record-count').textContent = data.total + ' total records';
+    } catch (err) {
+      document.getElementById('record-count').textContent = 'Error loading logs';
+      console.error(err);
+    }
+  }
+
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    autoRefreshTimer = setInterval(fetchLogs, 10000);
+  }
+
+  function stopAutoRefresh() {
+    if (autoRefreshTimer !== null) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+    }
+  }
+
+  function copyLogs() {
+    const lines = currentEntries.map(e =>
+      `${e.time} [${e.level}] ${e.logger}: ${e.message}`
+    ).join('\n');
+    navigator.clipboard.writeText(lines).then(() => {
+      const btn = document.getElementById('btn-copy');
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    }).catch(err => console.error('Copy failed', err));
+  }
+
+  document.getElementById('btn-refresh').addEventListener('click', fetchLogs);
+  document.getElementById('btn-copy').addEventListener('click', copyLogs);
+
+  document.getElementById('level-filter').addEventListener('change', fetchLogs);
+
+  document.getElementById('auto-refresh').addEventListener('change', function () {
+    if (this.checked) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  });
+
+  // Initial load
+  fetchLogs();
+  startAutoRefresh();
+</script>
+{% endblock %}

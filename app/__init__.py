@@ -6,24 +6,33 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-
 
 def create_app(config_object="config.Config"):
     app = Flask(__name__)
     app.config.from_object(config_object)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     app.logger.setLevel(logging.INFO)
+
+    from app.logging_setup import ring_handler
+
+    root_logger = logging.getLogger()
+    if ring_handler not in root_logger.handlers:
+        ring_handler.setLevel(logging.DEBUG)
+        root_logger.addHandler(ring_handler)
 
     db.init_app(app)
 
     from app.routes.books import books_bp
+    from app.routes.logs import logs_bp
     from app.routes.settings import settings_bp
 
     app.register_blueprint(books_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(logs_bp)
 
     with app.app_context():
         db.create_all()
