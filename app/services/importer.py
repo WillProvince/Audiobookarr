@@ -45,52 +45,56 @@ def _find_source_dir(content_path: str, torrent_name: str, library_path: str) ->
     - The torrent root folder  (multi-file torrent)
 
     We return the directory in both cases so we can scan for audio files.
+
+    Priority when library_path is configured:
+    1. library_path/torrent_name exact match  (the user-configured save path)
+    2. Fuzzy subdirectory scan of library_path
+    3. content_path directly (qBittorrent-reported path, used as fallback)
+    4. Parent of content_path
     """
-    # 1. Try content_path directly
+    if library_path and os.path.isdir(library_path):
+        # 1. Exact match on torrent name under the configured library path
+        if torrent_name:
+            candidate = os.path.join(library_path, torrent_name)
+            if os.path.isdir(candidate):
+                return candidate
+
+        # 2. Fuzzy match: find any subdirectory of library_path whose name is a
+        #    substring of torrent_name or vice-versa.  Require a minimum length
+        #    to avoid spurious matches on short strings like "A" or "The".
+        _FUZZY_MIN_LEN = 8
+        if torrent_name:
+            torrent_lower = torrent_name.lower()
+            matches = []
+            try:
+                for entry in os.scandir(library_path):
+                    if entry.is_dir():
+                        name_lower = entry.name.lower()
+                        if len(name_lower) >= _FUZZY_MIN_LEN and name_lower in torrent_lower:
+                            matches.append(entry.path)
+                        elif len(torrent_lower) >= _FUZZY_MIN_LEN and torrent_lower in name_lower:
+                            matches.append(entry.path)
+            except OSError:
+                pass
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                logger.warning(
+                    "_find_source_dir: multiple fuzzy-match candidates for %r: %s — skipping",
+                    torrent_name, matches,
+                )
+
+    # 3. Try content_path directly (fallback when no library_path or no match found)
     if content_path and os.path.exists(content_path):
         if os.path.isdir(content_path):
             return content_path
         return os.path.dirname(content_path)
 
-    # 2. Try parent of content_path (in case it's a file path and parent exists)
+    # 4. Try parent of content_path (in case it's a file path and parent exists)
     if content_path:
         parent = os.path.dirname(content_path)
         if parent and os.path.isdir(parent):
             return parent
-
-    if not library_path or not os.path.isdir(library_path):
-        return None
-
-    # 3. Exact match on torrent name
-    if torrent_name:
-        candidate = os.path.join(library_path, torrent_name)
-        if os.path.isdir(candidate):
-            return candidate
-
-    # 4. Fuzzy match: find any subdirectory of library_path whose name is a
-    #    substring of torrent_name or vice-versa.  Require a minimum length to
-    #    avoid spurious matches on short strings like "A" or "The".
-    _FUZZY_MIN_LEN = 8
-    if torrent_name:
-        torrent_lower = torrent_name.lower()
-        matches = []
-        try:
-            for entry in os.scandir(library_path):
-                if entry.is_dir():
-                    name_lower = entry.name.lower()
-                    if len(name_lower) >= _FUZZY_MIN_LEN and name_lower in torrent_lower:
-                        matches.append(entry.path)
-                    elif len(torrent_lower) >= _FUZZY_MIN_LEN and torrent_lower in name_lower:
-                        matches.append(entry.path)
-        except OSError:
-            pass
-        if len(matches) == 1:
-            return matches[0]
-        if len(matches) > 1:
-            logger.warning(
-                "_find_source_dir: multiple fuzzy-match candidates for %r: %s — skipping",
-                torrent_name, matches,
-            )
 
     return None
 
