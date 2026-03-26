@@ -26,7 +26,7 @@ def search_torrents(
     query: str,
     indexer: str = "all",
     categories: str = "3030",
-    timeout: int = 30,
+    timeout: int = 120,
 ) -> list[dict]:
     """Search Jackett for torrents matching *query*.
 
