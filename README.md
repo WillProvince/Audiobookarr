@@ -26,8 +26,15 @@ cd Audiobookarr
 cp .env.example .env
 ```
 
-Open `.env` and set at least a strong `SECRET_KEY`. The other values can be
-updated later from the Settings page once the stack is running.
+Open `.env` and set at least:
+- A strong `SECRET_KEY`.
+- `PUID` and `PGID` to match your host user (run `id` on the host — the values
+  next to `uid=` and `gid=` are what you want).  This ensures the container can
+  write to the `/audiobooks` and `/downloads` bind mounts without permission
+  errors.
+
+The other values can be updated later from the Settings page once the stack is
+running.
 
 ### 2. Start the stack
 
@@ -123,6 +130,8 @@ All settings have sensible defaults and can also be changed from the
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `PUID` | `1000` | UID to run as inside the container — set to your host user's UID (`id -u`) to fix volume permissions |
+| `PGID` | `1000` | GID to run as inside the container — set to your host user's GID (`id -g`) to fix volume permissions |
 | `SECRET_KEY` | `change-me-in-production` | Flask session secret — **change this** |
 | `DATABASE_URL` | `sqlite:////data/audiobookarr.db` (Docker) | SQLAlchemy database URI |
 | `JACKETT_URL` | `http://localhost:9117` | Jackett base URL |

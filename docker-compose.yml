@@ -28,6 +28,8 @@ services:
       - ${DOWNLOADS_PATH:-./downloads}:/downloads
       - ${AUDIOBOOKS_PATH:-./audiobooks}:/audiobooks
     environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - DATABASE_URL=sqlite:////data/audiobookarr.db
       - JACKETT_URL=http://jackett:9117
