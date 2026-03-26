@@ -2,6 +2,7 @@
 
 import logging
 import re
+import unicodedata
 
 from app import db
 from app.models import Book, Download, Setting
@@ -34,7 +35,11 @@ _STATE_MAP = {
 
 
 def _normalize(text: str) -> str:
-    """Lowercase, strip punctuation, and collapse whitespace for fuzzy matching."""
+    """Lowercase, unicode-normalize, strip punctuation, and collapse whitespace for fuzzy matching."""
+    # Decompose unicode (handles en-dashes, smart quotes, accented letters, etc.)
+    text = unicodedata.normalize("NFKD", text)
+    # Encode to ASCII dropping non-ASCII characters (removes diacritics etc.)
+    text = text.encode("ascii", "ignore").decode("ascii")
     text = text.lower()
     text = re.sub(r"[^\w\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
@@ -91,10 +96,22 @@ def _do_sync() -> None:
         # Find matching torrent by substring match on normalized title
         match = None
         dl_title_norm = _normalize(download.torrent_title)
+        dl_tokens = set(dl_title_norm.split())
+
         for name_norm, torrent in torrent_by_name.items():
+            # Primary: substring match
             if dl_title_norm in name_norm or name_norm in dl_title_norm:
                 match = torrent
                 break
+            # Fallback: token-set overlap (handles minor word boundary differences)
+            name_tokens = set(name_norm.split())
+            if dl_tokens and name_tokens:
+                smaller_set = min(dl_tokens, name_tokens, key=len)
+                larger_set = max(dl_tokens, name_tokens, key=len)
+                overlap = len(smaller_set & larger_set) / len(smaller_set)
+                if overlap >= 0.8:
+                    match = torrent
+                    break
 
         if match is None:
             logger.warning(
