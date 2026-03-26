@@ -121,7 +121,13 @@ def _do_sync() -> None:
         book = download.book
         if new_status == "completed":
             book.status = "downloaded"
-            _run_import(download, book)
+            try:
+                _run_import(download, book)
+            except Exception:
+                logger.exception(
+                    "sync_downloads: _run_import failed for download id=%s — status still saved as completed",
+                    download.id,
+                )
         elif new_status == "error":
             book.status = "missing"
 
