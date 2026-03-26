@@ -241,3 +241,49 @@ def test_sync_unmapped_state_logs_warning(app, caplog):
     with app.app_context():
         dl = db.session.get(Download, download_id)
         assert dl.status == "queued"
+
+
+# ---------------------------------------------------------------------------
+# Punctuation/whitespace mismatch between DB title and qBittorrent name
+# ---------------------------------------------------------------------------
+
+
+def test_sync_normalize_punctuation_mismatch(app):
+    """DB title with stripped punctuation must match qBittorrent name with original punctuation."""
+    with app.app_context():
+        book = Book(
+            title="Heir of Fire",
+            author="Sarah J Maas",
+            status="downloading",
+        )
+        db.session.add(book)
+        db.session.flush()
+        download = Download(
+            book_id=book.id,
+            torrent_title="Sarah J Maas   Throne of Glass 3   Heir of Fire",
+            magnet_or_url="magnet:?xt=urn:btih:abc999",
+            indexer="TestIndexer",
+            status="queued",
+        )
+        db.session.add(download)
+        db.session.commit()
+        book_id = book.id
+        download_id = download.id
+
+    fake_torrent = {
+        "name": "Sarah J. Maas - Throne of Glass 3 - Heir of Fire",
+        "state": "stoppedUP",
+    }
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.sync._run_import"):
+        sync_downloads(app)
+
+    with app.app_context():
+        dl = db.session.get(Download, download_id)
+        bk = db.session.get(Book, book_id)
+        assert dl.status == "completed"
+        assert bk.status == "downloaded"
