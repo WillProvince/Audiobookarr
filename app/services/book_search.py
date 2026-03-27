@@ -1,9 +1,11 @@
-"""Book search service using the Open Library API."""
+"""Book search service using the Open Library API and iTunes Search API."""
 
 import requests
 
 OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
+
+ITUNES_SEARCH_URL = "https://itunes.apple.com/search"
 
 
 def search_books(query: str, limit: int = 20) -> list[dict]:
