@@ -290,8 +290,51 @@ def test_sync_normalize_punctuation_mismatch(app):
 
 
 # ---------------------------------------------------------------------------
-# Real qBittorrent torrent name used as torrent_name for import_download
+# Token-set fallback: already-single-spaced DB title vs. punctuated qBT name
 # ---------------------------------------------------------------------------
+
+
+def test_sync_normalize_token_set_fallback(app):
+    """Token-set fallback must match when DB title is already single-spaced/stripped."""
+    with app.app_context():
+        book = Book(
+            title="Heir of Fire",
+            author="Sarah J Maas",
+            status="downloading",
+        )
+        db.session.add(book)
+        db.session.flush()
+        download = Download(
+            book_id=book.id,
+            # Already-sanitized single-spaced title (no extra spaces, no punctuation)
+            torrent_title="Sarah J Maas Throne of Glass 3 Heir of Fire",
+            magnet_or_url="magnet:?xt=urn:btih:abc999",
+            indexer="TestIndexer",
+            status="queued",
+        )
+        db.session.add(download)
+        db.session.commit()
+        book_id = book.id
+        download_id = download.id
+
+    fake_torrent = {
+        "name": "Sarah J. Maas - Throne of Glass 3 - Heir of Fire",
+        "state": "stoppedUP",
+    }
+
+    with patch(
+        "app.services.sync.QBittorrentClient.get_torrents",
+        return_value=[fake_torrent],
+    ), patch("app.services.sync.QBittorrentClient.logout"), \
+       patch("app.services.sync._run_import"):
+        sync_downloads(app)
+
+    with app.app_context():
+        dl = db.session.get(Download, download_id)
+        bk = db.session.get(Book, book_id)
+        assert dl.status == "completed"
+        assert bk.status == "downloaded"
+
 
 
 def test_sync_run_import_uses_real_torrent_name(app):
