@@ -33,9 +33,6 @@ Open `.env` and set at least:
   write to the `/audiobooks` and `/downloads` bind mounts without permission
   errors.
 
-The other values can be updated later from the Settings page once the stack is
-running.
-
 ### 2. Start the stack
 
 ```bash
@@ -125,8 +122,10 @@ pytest tests/ -v
 
 ## Environment Variables
 
-All settings have sensible defaults and can also be changed from the
-**Settings** page inside the app.
+Only infrastructure-level settings are configured via environment variables.
+All other settings (Jackett, qBittorrent, library paths, naming format) are
+configured via the **Settings page** in the web UI and stored in
+`/data/config.json` on the persisted Docker volume.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -134,14 +133,4 @@ All settings have sensible defaults and can also be changed from the
 | `PGID` | `1000` | GID to run as inside the container — set to your host user's GID (`id -g`) to fix volume permissions |
 | `SECRET_KEY` | `change-me-in-production` | Flask session secret — **change this** |
 | `DATABASE_URL` | `sqlite:////data/audiobookarr.db` (Docker) | SQLAlchemy database URI |
-| `JACKETT_URL` | `http://localhost:9117` | Jackett base URL |
-| `JACKETT_API_KEY` | *(empty)* | Jackett API key |
-| `JACKETT_INDEXER` | `all` | Jackett indexer slug |
-| `JACKETT_CATEGORIES` | `3030` | Newznab category IDs (3030 = AudioBook) |
-| `QBITTORRENT_URL` | `http://localhost:8080` | qBittorrent Web UI URL |
-| `QBITTORRENT_USERNAME` | `admin` | qBittorrent username |
-| `QBITTORRENT_PASSWORD` | `adminadmin` | qBittorrent password |
-| `QBITTORRENT_SAVE_PATH` | *(empty)* | Download save path inside the container |
-| `GUNICORN_WORKERS` | `2` | Number of Gunicorn worker processes |
-| `FLASK_DEBUG` | `0` | Set to `1` for debug mode (dev only) |
 

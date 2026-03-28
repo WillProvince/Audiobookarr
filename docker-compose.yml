@@ -1,7 +1,7 @@
 # Audiobookarr – full stack Docker Compose
 #
 # Quick start:
-#   1. Copy .env.example to .env and fill in your secrets.
+#   1. Copy .env.example to .env and fill in PUID, PGID, and SECRET_KEY.
 #   2. docker compose up -d
 #
 # After first boot:
@@ -9,8 +9,9 @@
 #   - Jackett:       http://localhost:9117  (grab the API key from the UI)
 #   - qBittorrent:   http://localhost:8080  (default creds: admin / adminadmin)
 #
-# Once Jackett and qBittorrent are running, paste their URLs and credentials
-# into the Audiobookarr Settings page.
+# All application settings (Jackett URL/API key, qBittorrent credentials,
+# library paths, naming format) are configured via the Settings page in the
+# web UI and stored in /data/config.json on the persisted volume.
 #
 # Volume paths (set in .env or as env vars):
 #   DOWNLOADS_PATH  – host path for downloads  (default: ./downloads)
@@ -32,15 +33,6 @@ services:
       - PGID=${PGID:-1000}
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - DATABASE_URL=sqlite:////data/audiobookarr.db
-      - JACKETT_URL=http://jackett:9117
-      - JACKETT_API_KEY=${JACKETT_API_KEY:-}
-      - JACKETT_INDEXER=${JACKETT_INDEXER:-all}
-      - JACKETT_CATEGORIES=${JACKETT_CATEGORIES:-3030}
-      - QBITTORRENT_URL=http://qbittorrent:8080
-      - QBITTORRENT_USERNAME=${QBITTORRENT_USERNAME:-admin}
-      - QBITTORRENT_PASSWORD=${QBITTORRENT_PASSWORD:-adminadmin}
-      - QBITTORRENT_SAVE_PATH=${QBITTORRENT_SAVE_PATH:-/downloads}
-      - AUDIOBOOKS_PATH=/audiobooks
     depends_on:
       - jackett
       - qbittorrent
