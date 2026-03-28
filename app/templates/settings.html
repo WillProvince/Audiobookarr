@@ -88,10 +88,15 @@
       <input type="text" id="NAMING_FORMAT" name="NAMING_FORMAT"
              value="{{ settings.NAMING_FORMAT }}" placeholder="{author}/{title}">
       <small>
-        Tokens: <code>{author}</code>, <code>{title}</code>.
-        Examples:
-        <code>{author}/{title}</code> → <em>Terry Pratchett/Guards Guards/</em> &nbsp;|&nbsp;
-        <code>{author} - {title}</code> → <em>Terry Pratchett - Guards Guards/</em>
+        Supported tokens: <code>{author}</code>, <code>{title}</code>,
+        <code>{series}</code>, <code>{series_index}</code>,
+        <code>{narrator}</code>, <code>{year}</code>.<br>
+        Examples:<br>
+        &bull; <code>{author}/{title}</code> → <em>Terry Pratchett/Guards Guards</em><br>
+        &bull; <code>{author}/{series}/{series_index} - {title}</code> → <em>Terry Pratchett/Discworld/8 - Guards Guards</em><br>
+        &bull; <code>{author}/{title} ({year})</code> → <em>Terry Pratchett/Guards Guards (1989)</em><br>
+        Note: tokens for fields that are empty or not set will be replaced with an empty string.
+        If the resulting path has consecutive separators (e.g. <code>//</code>), they will be collapsed.
       </small>
     </div>
   </section>

@@ -63,6 +63,51 @@ def test_build_dest_dir_unknown_token_falls_back():
     assert result == "/audiobooks/Frank Herbert/Dune"
 
 
+def test_build_dest_dir_series_token():
+    result = build_dest_dir(
+        "Terry Pratchett", "Guards Guards", "{author}/{series}/{series_index} - {title}",
+        "/audiobooks", series="Discworld", series_index="8",
+    )
+    assert result == "/audiobooks/Terry Pratchett/Discworld/8 - Guards Guards"
+
+
+def test_build_dest_dir_year_token():
+    result = build_dest_dir(
+        "Terry Pratchett", "Guards Guards", "{author}/{title} ({year})",
+        "/audiobooks", year="1989",
+    )
+    assert result == "/audiobooks/Terry Pratchett/Guards Guards (1989)"
+
+
+def test_build_dest_dir_empty_series_collapses_separator():
+    """When series is empty, {author}/{series}/{title} should not produce a double slash."""
+    result = build_dest_dir(
+        "Frank Herbert", "Dune", "{author}/{series}/{title}", "/audiobooks", series="",
+    )
+    assert "//" not in result
+    assert result == "/audiobooks/Frank Herbert/Dune"
+
+
+def test_build_dest_dir_multiple_empty_tokens_collapsed():
+    """Multiple empty optional tokens should all be collapsed cleanly."""
+    result = build_dest_dir(
+        "Frank Herbert", "Dune",
+        "{author}/{series}/{series_index}/{title}",
+        "/audiobooks",
+        series="", series_index="",
+    )
+    assert "//" not in result
+    assert result == "/audiobooks/Frank Herbert/Dune"
+
+
+def test_build_dest_dir_narrator_token():
+    result = build_dest_dir(
+        "Terry Pratchett", "Guards Guards", "{narrator}/{author}/{title}",
+        "/audiobooks", narrator="Nigel Planer",
+    )
+    assert result == "/audiobooks/Nigel Planer/Terry Pratchett/Guards Guards"
+
+
 # ---------------------------------------------------------------------------
 # _find_source_dir
 # ---------------------------------------------------------------------------

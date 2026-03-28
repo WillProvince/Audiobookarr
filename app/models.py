@@ -12,6 +12,10 @@ class Book(db.Model):
     author = db.Column(db.String(500), nullable=False)
     open_library_id = db.Column(db.String(100), unique=True, nullable=True)
     cover_url = db.Column(db.String(1000), nullable=True)
+    series = db.Column(db.String(500), nullable=True)
+    series_index = db.Column(db.String(50), nullable=True)
+    narrator = db.Column(db.String(500), nullable=True)
+    year = db.Column(db.String(10), nullable=True)
     # Status: wanted | downloading | downloaded | missing
     status = db.Column(db.String(50), nullable=False, default="wanted")
     added_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -25,6 +29,10 @@ class Book(db.Model):
             "author": self.author,
             "open_library_id": self.open_library_id,
             "cover_url": self.cover_url,
+            "series": self.series,
+            "series_index": self.series_index,
+            "narrator": self.narrator,
+            "year": self.year,
             "status": self.status,
             "added_at": self.added_at.isoformat(),
         }
