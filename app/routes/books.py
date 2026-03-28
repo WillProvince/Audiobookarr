@@ -77,6 +77,10 @@ def api_add_book():
     author = (payload.get("author") or "").strip()
     open_library_id = (payload.get("open_library_id") or "").strip() or None
     cover_url = (payload.get("cover_url") or "").strip() or None
+    series = (payload.get("series") or "").strip() or None
+    series_index = (payload.get("series_index") or "").strip() or None
+    narrator = (payload.get("narrator") or "").strip() or None
+    year = (payload.get("year") or "").strip() or None
 
     if not title or not author:
         return jsonify({"error": "title and author are required"}), 400
@@ -92,6 +96,10 @@ def api_add_book():
         author=author,
         open_library_id=open_library_id,
         cover_url=cover_url,
+        series=series,
+        series_index=series_index,
+        narrator=narrator,
+        year=year,
         status="wanted",
     )
     db.session.add(book)

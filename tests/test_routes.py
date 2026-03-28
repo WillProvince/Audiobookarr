@@ -79,6 +79,27 @@ def test_api_add_book_missing_fields(client):
     assert resp.status_code == 400
 
 
+def test_api_add_book_with_series_fields(client):
+    resp = client.post(
+        "/api/books",
+        data=json.dumps({
+            "title": "Guards Guards",
+            "author": "Terry Pratchett",
+            "series": "Discworld",
+            "series_index": "8",
+            "year": "1989",
+            "narrator": "Nigel Planer",
+        }),
+        content_type="application/json",
+    )
+    assert resp.status_code == 201
+    data = json.loads(resp.data)
+    assert data["series"] == "Discworld"
+    assert data["series_index"] == "8"
+    assert data["year"] == "1989"
+    assert data["narrator"] == "Nigel Planer"
+
+
 def test_api_list_books(client, app):
     with app.app_context():
         from app import db

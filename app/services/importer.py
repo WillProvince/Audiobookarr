@@ -19,20 +19,48 @@ def _sanitize(value: str) -> str:
     return value
 
 
-def build_dest_dir(author: str, title: str, naming_format: str, audiobooks_path: str) -> str:
+def build_dest_dir(
+    author: str,
+    title: str,
+    naming_format: str,
+    audiobooks_path: str,
+    *,
+    series: str = "",
+    series_index: str = "",
+    narrator: str = "",
+    year: str = "",
+) -> str:
     """
     Resolve the destination directory for a book using the naming format.
 
-    Supported tokens: {author}, {title}
+    Supported tokens: {author}, {title}, {series}, {series_index}, {narrator}, {year}
     Example format:   "{author}/{title}"  →  /audiobooks/Frank Herbert/Dune
+
+    Empty token values produce empty strings; consecutive path separators that
+    result from empty tokens are collapsed so that e.g. {author}/{series}/{title}
+    with no series still yields a clean path.
     """
     safe_author = _sanitize(author)
     safe_title = _sanitize(title)
+    safe_series = _sanitize(series or "")
+    safe_series_index = _sanitize(series_index or "")
+    safe_narrator = _sanitize(narrator or "")
+    safe_year = _sanitize(year or "")
     try:
-        relative = naming_format.format(author=safe_author, title=safe_title)
+        relative = naming_format.format(
+            author=safe_author,
+            title=safe_title,
+            series=safe_series,
+            series_index=safe_series_index,
+            narrator=safe_narrator,
+            year=safe_year,
+        )
     except KeyError as exc:
         logger.warning("Unknown naming token %s – falling back to '{author}/{title}'", exc)
         relative = f"{safe_author}/{safe_title}"
+    # Collapse consecutive separators that arise from empty token substitutions
+    parts = [p for p in relative.replace("\\", "/").split("/") if p]
+    relative = os.path.join(*parts) if parts else f"{safe_author}{os.sep}{safe_title}"
     return os.path.join(audiobooks_path, relative)
 
 
@@ -107,6 +135,11 @@ def import_download(
     library_path: str,
     audiobooks_path: str,
     naming_format: str,
+    *,
+    series: str = "",
+    series_index: str = "",
+    narrator: str = "",
+    year: str = "",
 ) -> str | None:
     """
     Move a completed download into the audiobook library.
@@ -121,7 +154,11 @@ def import_download(
         )
         return None
 
-    dest_dir = build_dest_dir(author, title, naming_format, audiobooks_path)
+    dest_dir = build_dest_dir(
+        author, title, naming_format, audiobooks_path,
+        series=series, series_index=series_index,
+        narrator=narrator, year=year,
+    )
     logger.info("import_download: %r → %r", source_dir, dest_dir)
 
     os.makedirs(dest_dir, exist_ok=True)

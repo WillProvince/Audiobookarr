@@ -191,6 +191,10 @@ def _run_import(download: Download, book: Book, torrent: dict | None = None) -> 
         library_path=library_path,
         audiobooks_path=audiobooks_path,
         naming_format=naming_format,
+        series=book.series or "",
+        series_index=book.series_index or "",
+        narrator=book.narrator or "",
+        year=book.year or "",
     )
 
     if dest:
