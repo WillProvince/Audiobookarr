@@ -1,12 +1,14 @@
 """Tests for the sync_downloads background task."""
+import json
 import logging
 from unittest.mock import patch
 
 import pytest
 
-from app.models import Book, Download, Setting
+from app.models import Book, Download
 from app import db
 from app.services.sync import sync_downloads
+from tests.conftest import TestConfig
 
 
 def _make_book_and_download(app, status="queued"):
@@ -155,9 +157,12 @@ def test_sync_run_import_skipped_when_audiobooks_path_not_set(app):
         "content_path": "/downloads/Dune Frank Herbert",
     }
 
-    # Ensure AUDIOBOOKS_PATH is empty in the DB
-    with app.app_context():
-        Setting.set("AUDIOBOOKS_PATH", "")
+    # Ensure AUDIOBOOKS_PATH is empty in the config file
+    with open(TestConfig.CONFIG_FILE, "r") as f:
+        cfg = json.load(f)
+    cfg["AUDIOBOOKS_PATH"] = ""
+    with open(TestConfig.CONFIG_FILE, "w") as f:
+        json.dump(cfg, f)
 
     with patch(
         "app.services.sync.QBittorrentClient.get_torrents",
@@ -357,8 +362,6 @@ def test_sync_run_import_uses_real_torrent_name(app):
         )
         db.session.add(download)
         db.session.commit()
-        # Ensure AUDIOBOOKS_PATH is set so _run_import doesn't skip
-        Setting.set("AUDIOBOOKS_PATH", "/audiobooks")
 
     real_torrent_name = "Sarah J. Maas - Throne of Glass 3 - Heir of Fire"
     fake_torrent = {
@@ -366,6 +369,13 @@ def test_sync_run_import_uses_real_torrent_name(app):
         "state": "stoppedUP",
         "content_path": f"/downloads/tmp/{real_torrent_name}",
     }
+
+    # Ensure AUDIOBOOKS_PATH is set in the config file so _run_import doesn't skip
+    with open(TestConfig.CONFIG_FILE, "r") as f:
+        cfg = json.load(f)
+    cfg["AUDIOBOOKS_PATH"] = "/audiobooks"
+    with open(TestConfig.CONFIG_FILE, "w") as f:
+        json.dump(cfg, f)
 
     with patch(
         "app.services.sync.QBittorrentClient.get_torrents",

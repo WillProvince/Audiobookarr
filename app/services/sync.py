@@ -5,7 +5,8 @@ import re
 import unicodedata
 
 from app import db
-from app.models import Book, Download, Setting
+from app.models import Book, Download
+from app.config_file import get_setting
 from app.services.qbittorrent import QBittorrentClient
 
 logger = logging.getLogger(__name__)
@@ -56,13 +57,9 @@ def sync_downloads(app) -> None:
 
 
 def _setting(key: str) -> str:
-    """Resolve a setting from the DB, falling back to the app config."""
+    """Resolve a setting from the config file."""
     from flask import current_app
-
-    from_db = Setting.get(key)
-    if from_db is not None:
-        return from_db
-    return current_app.config.get(key, "")
+    return get_setting(current_app._get_current_object(), key)
 
 
 def _do_sync() -> None:

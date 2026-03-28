@@ -33,3 +33,6 @@ htmlcov/
 
 # macOS
 .DS_Store
+
+# Config file (stored on persisted volume, not in source)
+data/config.json

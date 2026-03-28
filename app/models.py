@@ -56,30 +56,3 @@ class Download(db.Model):
             "added_at": self.added_at.isoformat(),
             "download_path": self.download_path,
         }
-
-
-class Setting(db.Model):
-    """Key-value store for application settings."""
-
-    __tablename__ = "settings"
-
-    id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(200), unique=True, nullable=False)
-    value = db.Column(db.String(2000), nullable=True)
-
-    @classmethod
-    def get(cls, key, default=None):
-        row = cls.query.filter_by(key=key).first()
-        if row is None:
-            return default
-        return row.value
-
-    @classmethod
-    def set(cls, key, value):
-        row = cls.query.filter_by(key=key).first()
-        if row is None:
-            row = cls(key=key, value=value)
-            db.session.add(row)
-        else:
-            row.value = value
-        db.session.commit()

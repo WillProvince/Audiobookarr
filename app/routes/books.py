@@ -5,7 +5,8 @@ import logging
 from flask import Blueprint, current_app, jsonify, render_template, request
 
 from app import db
-from app.models import Book, Download, Setting
+from app.models import Book, Download
+from app.config_file import get_setting as _cfg
 from app.services import book_search as bs
 from app.services import jackett as jk
 from app.services.qbittorrent import QBittorrentClient, QBittorrentError
@@ -120,10 +121,10 @@ def api_search_torrents(book_id):
     if book is None:
         return jsonify({"error": "Not found"}), 404
 
-    jackett_url = _setting("JACKETT_URL", "JACKETT_URL")
-    api_key = _setting("JACKETT_API_KEY", "JACKETT_API_KEY")
-    indexer = _setting("JACKETT_INDEXER", "JACKETT_INDEXER")
-    categories = _setting("JACKETT_CATEGORIES", "JACKETT_CATEGORIES")
+    jackett_url = _setting("JACKETT_URL")
+    api_key = _setting("JACKETT_API_KEY")
+    indexer = _setting("JACKETT_INDEXER")
+    categories = _setting("JACKETT_CATEGORIES")
 
     if not api_key:
         return jsonify({"error": "Jackett API key not configured"}), 503
@@ -169,10 +170,10 @@ def api_download(book_id):
     if not magnet_or_url:
         return jsonify({"error": "magnet_or_url is required"}), 400
 
-    qbt_url = _setting("QBITTORRENT_URL", "QBITTORRENT_URL")
-    qbt_user = _setting("QBITTORRENT_USERNAME", "QBITTORRENT_USERNAME")
-    qbt_pass = _setting("QBITTORRENT_PASSWORD", "QBITTORRENT_PASSWORD")
-    save_path = _setting("QBITTORRENT_SAVE_PATH", "QBITTORRENT_SAVE_PATH")
+    qbt_url = _setting("QBITTORRENT_URL")
+    qbt_user = _setting("QBITTORRENT_USERNAME")
+    qbt_pass = _setting("QBITTORRENT_PASSWORD")
+    save_path = _setting("QBITTORRENT_SAVE_PATH")
 
     logger.info(
         "api_download: qbt_url=%r qbt_user=%r save_path=%r",
@@ -225,9 +226,6 @@ def api_sync():
 # ---------------------------------------------------------------------------
 
 
-def _setting(db_key: str, config_key: str) -> str:
-    """Resolve a setting: DB overrides app config / environment."""
-    from_db = Setting.get(db_key)
-    if from_db is not None:
-        return from_db
-    return current_app.config.get(config_key, "")
+def _setting(key: str) -> str:
+    """Resolve a setting from the config file."""
+    return _cfg(current_app._get_current_object(), key)

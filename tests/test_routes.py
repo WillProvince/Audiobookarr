@@ -3,7 +3,7 @@ import json
 import pytest
 import responses as resp_lib
 
-from app.models import Book, Download, Setting
+from app.models import Book, Download
 from app.services.book_search import OPEN_LIBRARY_SEARCH_URL
 
 
@@ -190,7 +190,9 @@ def test_settings_page(client):
     assert b"qBittorrent" in resp.data
 
 
-def test_api_save_and_get_settings(client):
+def test_api_save_and_get_settings(client, app):
+    from tests.conftest import TestConfig
+
     resp = client.post(
         "/api/settings",
         data=json.dumps({"JACKETT_URL": "http://new-jackett:9117", "JACKETT_API_KEY": "newkey"}),
@@ -203,3 +205,9 @@ def test_api_save_and_get_settings(client):
     assert data["JACKETT_URL"] == "http://new-jackett:9117"
     # API key should be masked
     assert data["JACKETT_API_KEY"] == "********"
+
+    # Verify the config file was written
+    with open(TestConfig.CONFIG_FILE) as f:
+        saved = json.load(f)
+    assert saved["JACKETT_URL"] == "http://new-jackett:9117"
+    assert saved["JACKETT_API_KEY"] == "newkey"
